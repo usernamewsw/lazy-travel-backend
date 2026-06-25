@@ -453,7 +453,7 @@ createApp({
       loading.value = true; itinerary.value = null; rawResult.value = ''; error.value = ''; openDays.value = [];
       startLoadSteps();
       try {
-        const API_BASE = window.API_BASE || 'http://127.0.0.1:8000';
+        const API_BASE = window.API_BASE || 'https://lazy-travel-backend.onrender.com';
         const resp = await fetch(API_BASE + '/generate', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...form })
