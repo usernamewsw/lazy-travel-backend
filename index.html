@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>懒人旅行规划</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brown:    #c07a4f;
+      --brown-dk: #9a5f38;
+      --brown-lt: #e8d5c0;
+      --cream:    #fdf6ee;
+      --text:     #2d1f12;
+      --text-2:   #7a5a3a;
+      --text-3:   #b09070;
+      --border:   #eddece;
+      --green:    #3d9970;
+      --radius:   14px;
+    }
+    body { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+    .hero {
+      position: relative; height: 220px; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 0 1.5rem 1.8rem;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(160deg, #d4906a 0%, #a05a30 60%, #6b3a1f 100%);
+      background-size: cover; background-position: center;
+      transition: background-image 0.6s;
+    }
+    .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 60%); }
+    .hero-content { position: relative; z-index: 1; }
+    .hero-label { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: rgba(255,255,255,0.7); text-transform: uppercase; margin-bottom: 6px; }
+    .hero h1 { font-size: 28px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 4px; }
+    .hero-sub { font-size: 13px; color: rgba(255,255,255,0.75); }
+
+    .dest-pill {
+      position: absolute; top: 1rem; right: 1.2rem; z-index: 2;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(6px);
+      border-radius: 20px; padding: 5px 10px 5px 5px;
+      font-size: 12px; color: rgba(255,255,255,0.9);
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: opacity 0.4s; opacity: 0;
+    }
+    .dest-pill.show { opacity: 1; }
+    .dest-dot { width: 24px; height: 24px; border-radius: 50%; background: var(--brown); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+
+    .form-shell {
+      background: #fff; border-radius: 22px 22px 0 0;
+      margin-top: -20px; padding: 1.8rem 1.4rem 2rem;
+      min-height: calc(100vh - 200px); position: relative; z-index: 2;
+    }
+
+    .sec-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-3); text-transform: uppercase; margin-bottom: 10px; margin-top: 20px; }
+    .sec-title:first-child { margin-top: 0; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+    .field label { font-size: 12px; color: var(--text-2); font-weight: 500; }
+    .field input, .field select {
+      border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 13px;
+      font-size: 15px; background: #fffaf5; color: var(--text); outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s; font-family: inherit; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--brown); box-shadow: 0 0 0 3px rgba(192,122,79,0.12); }
+    .field input::placeholder { color: var(--text-3); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+    .chip {
+      padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: #fffaf5; font-size: 13px; cursor: pointer; color: var(--text-2);
+      transition: all 0.15s; user-select: none; font-family: inherit;
+    }
+    .chip.active { background: var(--brown); color: #fff; border-color: var(--brown); }
+    .chip:hover:not(.active) { border-color: var(--brown); color: var(--brown); }
+
+    .btn-generate {
+      width: 100%; padding: 15px; background: var(--brown); color: #fff; border: none;
+      border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;
+      margin-top: 6px; transition: background 0.18s, transform 0.1s; font-family: inherit;
+    }
+    .btn-generate:hover:not(:disabled) { background: var(--brown-dk); }
+    .btn-generate:active:not(:disabled) { transform: scale(0.98); }
+    .btn-generate:disabled { background: #d9c8b8; cursor: not-allowed; }
+
+    .loading-wrap { text-align: center; padding: 2.5rem 1rem; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--brown); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: var(--text-2); }
+    .loading-steps { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; text-align: left; max-width: 220px; margin-left: auto; margin-right: auto; }
+    .lstep { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); }
+    .lstep.done { color: var(--green); }
+    .lstep-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+    .lstep.done .lstep-dot { background: var(--green); }
+    .lstep.active .lstep-dot { background: var(--brown); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    .error-msg { background: #fff3f3; border: 1.5px solid #f5c0c0; border-radius: 10px; padding: 12px 14px; margin-top: 12px; color: #c0392b; font-size: 13px; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* ── result ── */
+    .result-wrap { margin-top: 1.6rem; }
+
+    .overview-card {
+      background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dk) 100%);
+      border-radius: var(--radius); padding: 1.3rem 1.4rem; color: #fff; margin-bottom: 14px;
+    }
+    .overview-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; line-height: 1.3; }
+    .overview-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ov-tag { background: rgba(255,255,255,0.18); border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 500; border: 1px solid rgba(255,255,255,0.2); }
+
+    .budget-card { background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.3rem; margin-bottom: 14px; }
+    .budget-title { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+    .brow { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .brow:last-child { margin-bottom: 0; }
+    .blabel { font-size: 12px; color: var(--text-2); width: 52px; flex-shrink: 0; }
+    .bbar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .bbar-fill { height: 100%; border-radius: 3px; background: var(--brown); transition: width 0.8s ease; }
+    .bamt { font-size: 12px; color: var(--text-2); font-weight: 500; min-width: 54px; text-align: right; }
+
+    .day-card { background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+    .day-hdr { padding: 13px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; transition: background 0.15s; }
+    .day-hdr:hover { background: #fdf6ee; }
+    .day-num { background: var(--brown); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+    .day-sum { flex: 1; font-size: 14px; font-weight: 500; color: var(--text-2); }
+    .day-chev { font-size: 11px; color: var(--text-3); transition: transform 0.2s; }
+    .day-chev.open { transform: rotate(180deg); }
+
+    .day-body { border-top: 1px solid var(--border); }
+    .slot { display: flex; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--border); }
+    .slot:last-child { border-bottom: none; }
+    .slot-icol { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 38px; }
+    .slot-circ { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .slot-circ.m { background: #fff3e0; }
+    .slot-circ.a { background: #fff8e1; }
+    .slot-circ.e { background: #ede7f6; }
+    .slot-period { font-size: 10px; color: var(--text-3); font-weight: 600; }
+    .slot-info { flex: 1; padding-top: 3px; }
+    .sline { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 5px; }
+    .sline:last-child { margin-bottom: 0; }
+    .sbadge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+    .sbadge.act { background: #fff3e0; color: #a05a30; }
+    .sbadge.trn { background: #e8f5e9; color: #2e7d32; }
+    .sbadge.fod { background: #fce4ec; color: #880e4f; }
+    .stext { font-size: 13px; line-height: 1.65; color: #444; }
+
+    .tips-card { background: #f0f9f4; border: 1.5px solid #b2dfdb; border-radius: var(--radius); padding: 1rem 1.2rem; margin-top: 4px; }
+    .tips-title { font-size: 11px; font-weight: 700; color: #00695c; margin-bottom: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .tips-list { list-style: none; }
+    .tips-list li { font-size: 13px; color: #2d4a45; padding: 3px 0; display: flex; gap: 6px; }
+    .tips-list li::before { content: '→'; color: var(--green); flex-shrink: 0; }
+
+    .btn-reset { width: 100%; padding: 13px; background: transparent; color: var(--brown); border: 1.5px solid var(--brown); border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 14px; transition: all 0.15s; font-family: inherit; }
+    .btn-reset:hover { background: #fdf0e3; }
+
+    .result-raw { background: #fffaf5; border-radius: var(--radius); border: 1.5px solid var(--border); padding: 1.4rem; margin-top: 1.4rem; }
+    .result-raw h3 { font-size: 13px; color: var(--text-2); margin-bottom: 10px; font-weight: 600; }
+    .result-raw pre { font-size: 13px; line-height: 1.9; color: #444; white-space: pre-wrap; font-family: inherit; }
+
+    .slide-enter-active { transition: max-height 0.3s ease, opacity 0.2s ease; overflow: hidden; }
+    .slide-leave-active { transition: max-height 0.25s ease, opacity 0.18s ease; overflow: hidden; }
+    .slide-enter-from, .slide-leave-to { max-height: 0; opacity: 0; }
+    .slide-enter-to, .slide-leave-from { max-height: 900px; opacity: 1; }
+
+    .fade-enter-active { transition: opacity 0.4s ease, transform 0.3s ease; }
+    .fade-enter-from { opacity: 0; transform: translateY(10px); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div class="hero">
+    <div class="hero-bg" :style="heroBg ? { backgroundImage: 'url(' + heroBg + ')' } : {}"></div>
+    <div class="hero-overlay"></div>
+    <div class="dest-pill" :class="{ show: form.destination }">
+      <div class="dest-dot">📍</div>
+      <span>{{ form.destination }}</span>
+    </div>
+    <div class="hero-content">
+      <div class="hero-label">AI 旅行规划师</div>
+      <h1>{{ itinerary ? itinerary.destination + ' · ' + itinerary.days + '天' : '懒人旅行规划' }}</h1>
+      <div class="hero-sub">{{ itinerary ? itinerary.style + ' · ' + itinerary.people + '人出行' : '告诉我想去哪，剩下的交给 AI' }}</div>
+    </div>
+  </div>
+
+  <div class="form-shell">
+
+    <template v-if="!itinerary && !rawResult">
+      <div class="sec-title">基本信息</div>
+      <div class="grid2">
+        <div class="field">
+          <label>目的地</label>
+          <input v-model="form.destination" placeholder="西安、京都、巴厘岛…" @input="onDestInput" />
+        </div>
+        <div class="field">
+          <label>出行天数</label>
+          <input v-model.number="form.days" type="number" placeholder="3" min="1" max="30" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>出行人数</label>
+          <input v-model.number="form.people" type="number" placeholder="2" min="1" />
+        </div>
+        <div class="field">
+          <label>总预算</label>
+          <input v-model="form.budget" placeholder="如：5000元" />
+        </div>
+      </div>
+
+      <hr class="divider" />
+      <div class="sec-title">旅行风格</div>
+      <div class="chips">
+        <div v-for="s in styles" :key="s" class="chip" :class="{ active: form.style === s }" @click="form.style = s">{{ s }}</div>
+      </div>
+
+      <div class="field">
+        <label>特殊要求 / 必去景点（选填）</label>
+        <input v-model="form.must_go" placeholder="故宫、不爱爬山、素食…" />
+      </div>
+
+      <button class="btn-generate" :disabled="loading" @click="generate">
+        {{ loading ? '⏳ 规划中…' : '✨ 生成旅行计划' }}
+      </button>
+
+      <div v-if="loading" class="loading-wrap">
+        <div class="spinner"></div>
+        <div class="loading-text">AI 正在为你定制行程</div>
+        <div class="loading-steps">
+          <div class="lstep" :class="loadStep >= 1 ? 'done' : loadStep === 0 ? 'active' : ''">
+            <div class="lstep-dot"></div>分析目的地特色
+          </div>
+          <div class="lstep" :class="loadStep >= 2 ? 'done' : loadStep === 1 ? 'active' : ''">
+            <div class="lstep-dot"></div>规划每日行程
+          </div>
+          <div class="lstep" :class="loadStep >= 3 ? 'done' : loadStep === 2 ? 'active' : ''">
+            <div class="lstep-dot"></div>推荐美食与交通
+          </div>
+          <div class="lstep" :class="loadStep >= 4 ? 'done' : loadStep === 3 ? 'active' : ''">
+            <div class="lstep-dot"></div>整理旅行贴士
+          </div>
+        </div>
+      </div>
+
+      <div v-if="error" class="error-msg">⚠️ {{ error }}</div>
+    </template>
+
+    <transition name="fade">
+      <div v-if="itinerary" class="result-wrap">
+        <div class="overview-card">
+          <div class="overview-title">{{ itinerary.destination }} · {{ itinerary.days }}天行程</div>
+          <div class="overview-tags">
+            <span class="ov-tag">👥 {{ itinerary.people }}人</span>
+            <span class="ov-tag">💰 {{ itinerary.budget }}</span>
+            <span class="ov-tag">🎒 {{ itinerary.style }}</span>
+            <span class="ov-tag">📅 {{ itinerary.days }}天{{ itinerary.days - 1 }}夜</span>
+          </div>
+        </div>
+
+        <div v-if="budgetBreakdown" class="budget-card">
+          <div class="budget-title">💰 预算分配参考</div>
+          <div v-for="item in budgetBreakdown" :key="item.label" class="brow">
+            <span class="blabel">{{ item.label }}</span>
+            <div class="bbar-wrap"><div class="bbar-fill" :style="{ width: item.pct + '%' }"></div></div>
+            <span class="bamt">{{ item.amt }}</span>
+          </div>
+        </div>
+
+        <div v-for="dayItem in itinerary.schedule" :key="dayItem.day" class="day-card">
+          <div class="day-hdr" @click="toggleDay(dayItem.day)">
+            <span class="day-num">第 {{ dayItem.day }} 天</span>
+            <span class="day-sum">{{ daySummary(dayItem) }}</span>
+            <span class="day-chev" :class="{ open: openDays.includes(dayItem.day) }">▼</span>
+          </div>
+          <transition name="slide">
+            <div v-if="openDays.includes(dayItem.day)" class="day-body">
+
+              <div v-if="dayItem.morning" class="slot">
+                <div class="slot-icol">
+                  <div class="slot-circ m">🌅</div>
+                  <span class="slot-period">上午</span>
+                </div>
+                <div class="slot-info">
+                  <div v-if="dayItem.morning.activity" class="sline"><span class="sbadge act">景点</span><span class="stext">{{ dayItem.morning.activity }}</span></div>
+                  <div v-if="dayItem.morning.transport" class="sline"><span class="sbadge trn">交通</span><span class="stext">{{ dayItem.morning.transport }}</span></div>
+                  <div v-if="dayItem.morning.food" class="sline"><span class="sbadge fod">餐饮</span><span class="stext">{{ dayItem.morning.food }}</span></div>
+                  <span v-if="typeof dayItem.morning === 'string'" class="stext">{{ dayItem.morning }}</span>
+                </div>
+              </div>
+
+              <div v-if="dayItem.afternoon" class="slot">
+                <div class="slot-icol">
+                  <div class="slot-circ a">☀️</div>
+                  <span class="slot-period">下午</span>
+                </div>
+                <div class="slot-info">
+                  <div v-if="dayItem.afternoon.activity" class="sline"><span class="sbadge act">景点</span><span class="stext">{{ dayItem.afternoon.activity }}</span></div>
+                  <div v-if="dayItem.afternoon.transport" class="sline"><span class="sbadge trn">交通</span><span class="stext">{{ dayItem.afternoon.transport }}</span></div>
+                  <div v-if="dayItem.afternoon.food" class="sline"><span class="sbadge fod">餐饮</span><span class="stext">{{ dayItem.afternoon.food }}</span></div>
+                  <span v-if="typeof dayItem.afternoon === 'string'" class="stext">{{ dayItem.afternoon }}</span>
+                </div>
+              </div>
+
+              <div v-if="dayItem.evening" class="slot">
+                <div class="slot-icol">
+                  <div class="slot-circ e">🌙</div>
+                  <span class="slot-period">晚上</span>
+                </div>
+                <div class="slot-info">
+                  <div v-if="dayItem.evening.activity" class="sline"><span class="sbadge act">景点</span><span class="stext">{{ dayItem.evening.activity }}</span></div>
+                  <div v-if="dayItem.evening.transport" class="sline"><span class="sbadge trn">交通</span><span class="stext">{{ dayItem.evening.transport }}</span></div>
+                  <div v-if="dayItem.evening.food" class="sline"><span class="sbadge fod">餐饮</span><span class="stext">{{ dayItem.evening.food }}</span></div>
+                  <span v-if="typeof dayItem.evening === 'string'" class="stext">{{ dayItem.evening }}</span>
+                </div>
+              </div>
+
+            </div>
+          </transition>
+        </div>
+
+        <div v-if="itinerary.tips && itinerary.tips.length" class="tips-card">
+          <div class="tips-title">✅ 旅行贴士</div>
+          <ul class="tips-list">
+            <li v-for="tip in itinerary.tips" :key="tip">{{ tip }}</li>
+          </ul>
+        </div>
+
+        <button class="btn-reset" @click="reset">↩ 重新规划</button>
+      </div>
+    </transition>
+
+    <div v-if="rawResult" class="result-raw">
+      <h3>🌟 你的专属行程</h3>
+      <pre>{{ rawResult }}</pre>
+      <button class="btn-reset" @click="reset" style="margin-top:12px">↩ 重新规划</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const { createApp, reactive, ref, computed } = Vue;
+
+createApp({
+  setup() {
+    function normalizeItinerary(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      if (raw.trip) raw = raw.trip;
+      const scheduleRaw = raw.schedule || raw.itinerary || raw['行程'] || null;
+      if (!Array.isArray(scheduleRaw)) return null;
+      const schedule = scheduleRaw.map(d => {
+        const day = d.day ?? d['天'] ?? d['第'];
+        const norm = { day };
+        ['morning','afternoon','evening'].forEach((eng, i) => {
+          const cnKey = ['上午','下午','晚上'][i];
+          const slot = d[eng] || d[cnKey];
+          if (!slot) { norm[eng] = null; return; }
+          if (typeof slot === 'string') {
+            norm[eng] = { activity: slot, transport: '', food: '' };
+          } else {
+            norm[eng] = {
+              activity:  slot.activity  || slot['活动'] || slot['景点'] || '',
+              transport: slot.transport || slot['交通'] || '',
+              food:      slot.food      || slot['餐饮'] || slot['美食'] || ''
+            };
+          }
+        });
+        return norm;
+      });
+      return {
+        destination: raw.destination || raw['目的地'] || '',
+        days:        raw.days        || raw['天数']   || schedule.length,
+        people:      raw.people      || raw['人数']   || '',
+        budget:      raw.budget      || raw['预算']   || '',
+        style:       raw.style       || raw['风格']   || '',
+        tips:        raw.tips        || raw['贴士']   || [],
+        schedule
+      };
+    }
+
+    function parseBudget(budgetStr) {
+      const num = parseFloat((budgetStr || '').replace(/[^0-9.]/g, ''));
+      if (!num || isNaN(num)) return null;
+      const items = [
+        { label: '住宿', r: 0.35 }, { label: '餐饮', r: 0.25 },
+        { label: '交通', r: 0.20 }, { label: '景点', r: 0.15 }, { label: '其他', r: 0.05 }
+      ];
+      return items.map(({ label, r }) => ({
+        label, pct: Math.round(r * 100), amt: '¥' + Math.round(num * r)
+      }));
+    }
+
+    const styles = ['文化历史', '美食探索', '自然风光', '轻松悠闲', '购物娱乐', '亲子游'];
+    const form = reactive({ destination: '', days: null, people: null, budget: '', style: '文化历史', must_go: '' });
+    const loading   = ref(false);
+    const error     = ref('');
+    const itinerary = ref(null);
+    const rawResult = ref('');
+    const openDays  = ref([]);
+    const loadStep  = ref(0);
+    const heroBg    = ref('');
+
+    const budgetBreakdown = computed(() => {
+      return itinerary.value ? parseBudget(itinerary.value.budget) : null;
+    });
+
+    let destTimer = null;
+    function onDestInput() {
+      clearTimeout(destTimer);
+      destTimer = setTimeout(() => {
+        const dest = form.destination.trim();
+        if (dest.length >= 2) {
+          heroBg.value = 'https://source.unsplash.com/800x400/?' + encodeURIComponent(dest + ' travel landmark');
+        }
+      }, 900);
+    }
+
+    function startLoadSteps() {
+      loadStep.value = 0;
+      [700, 1600, 2800, 4000].forEach((t, i) => {
+        setTimeout(() => { if (loading.value) loadStep.value = i + 1; }, t);
+      });
+    }
+
+    function toggleDay(day) {
+      const idx = openDays.value.indexOf(day);
+      if (idx === -1) openDays.value.push(day); else openDays.value.splice(idx, 1);
+    }
+
+    function daySummary(dayItem) {
+      const slot = dayItem.morning || dayItem.afternoon || dayItem.evening;
+      if (!slot) return '';
+      const text = typeof slot === 'string' ? slot : (slot.activity || '');
+      return text.length > 24 ? text.slice(0, 24) + '…' : text;
+    }
+
+    function reset() {
+      itinerary.value = null; rawResult.value = ''; error.value = ''; openDays.value = []; heroBg.value = '';
+    }
+
+    async function generate() {
+      if (!form.destination || !form.days || !form.people || !form.budget) {
+        error.value = '请填写目的地、天数、人数和预算'; return;
+      }
+      loading.value = true; itinerary.value = null; rawResult.value = ''; error.value = ''; openDays.value = [];
+      startLoadSteps();
+      try {
+        const API_BASE = window.API_BASE || 'http://127.0.0.1:8000';
+        const resp = await fetch(API_BASE + '/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...form })
+        });
+        if (!resp.ok) throw new Error('服务器错误 ' + resp.status);
+        const data = await resp.json();
+        let parsed = data.result;
+        if (typeof parsed === 'string') {
+          parsed = parsed.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+          try { parsed = JSON.parse(parsed); } catch {}
+        }
+        parsed = normalizeItinerary(parsed);
+        if (parsed && Array.isArray(parsed.schedule)) {
+          itinerary.value = parsed; openDays.value = [1];
+        } else {
+          rawResult.value = typeof data.result === 'string' ? data.result : JSON.stringify(data.result, null, 2);
+        }
+      } catch (e) {
+        error.value = '请求失败，请确认后端服务已启动（uvicorn main:app --reload）';
+      } finally {
+        loading.value = false; loadStep.value = 4;
+      }
+    }
+
+    return { styles, form, loading, error, itinerary, rawResult, openDays, loadStep, heroBg, budgetBreakdown, generate, toggleDay, daySummary, reset, onDestInput };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
