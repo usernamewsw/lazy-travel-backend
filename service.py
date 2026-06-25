@@ -11,7 +11,7 @@ client = OpenAI(
 
 def generate_plan(prompt):
     response = client.chat.completions.create(
-        model="deepseek-v4-flash",
+        model="deepseek-v4-pro",
         messages=[
             {"role": "system", "content": "你是一个专业旅行规划助手"},
             {"role": "user", "content": prompt}
